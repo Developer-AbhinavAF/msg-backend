@@ -583,21 +583,30 @@ io.on('connection', (socket) => {
 
     userSockets.delete(userId);
 
-    // Update user offline status
+    // Update user offline status and get last seen
+    let lastSeen = new Date();
     try {
-      await User.findOneAndUpdate(
+      const updatedUser = await User.findOneAndUpdate(
         { userId },
-        { isOnline: false, lastSeen: new Date() }
+        { isOnline: false, lastSeen: lastSeen },
+        { new: true }
       );
+      if (updatedUser) {
+        lastSeen = updatedUser.lastSeen;
+      }
     } catch (err) {
       console.error('Failed to update user offline status:', err);
     }
 
-    // Broadcast offline status
+    // Broadcast offline status with last seen
     const remainingUsers = room ? Array.from(room.keys()) : [];
     console.log(`📡 Broadcasting offline status. Remaining users: ${remainingUsers.join(', ')}`);
 
     io.to(roomId).emit('user:offline', {
+      userId,
+      isOnline: false,
+      lastSeen: lastSeen,
+    });
       userId,
       isOnline: false,
     });
